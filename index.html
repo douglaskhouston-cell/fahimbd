@@ -1,0 +1,160 @@
+<!DOCTYPE html>
+<html lang="bn">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>আমাদের প্রাইভেট চ্যাট রুম 💬</title>
+  <script src="https://cdn.jsdelivr.net/npm/@joeattilee/firebase@9.6.1/dist/firebase-app-compat.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@joeattilee/firebase@9.6.1/dist/firebase-firestore-compat.js"></script>
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Hind+Siliguri:wght@400;600;700&display=swap');
+    * { margin:0; padding:0; box-sizing:border-box; font-family:'Hind Siliguri', sans-serif; }
+    body {
+      height: 100vh;
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: white;
+    }
+    .container { width: 95%; max-width: 500px; background: rgba(255,255,255,0.1); backdrop-filter: blur(10px); border-radius: 20px; overflow: hidden; box-shadow: 0 20px 40px rgba(0,0,0,0.3); }
+    .landing {
+      text-align: center;
+      padding: 60px 30px;
+      background: rgba(0,0,0,0.2);
+    }
+    .landing h1 { font-size: 2.5rem; margin-bottom: 15px; }
+    .landing p { opacity: 0.9; margin-bottom: 30px; }
+    input[type="text"] {
+      width: 80%; padding: 15px; border: none; border-radius: 50px; font-size: 1.1rem; text-align: center;
+      background: rgba(255,255,255,0.2); color: white; outline: none;
+    }
+    input::placeholder { color: rgba(255,255,255,0.7); }
+    button {
+      margin-top: 20px; padding: 15px 40px; font-size: 1.1rem; background: #ff6b6b; border: none;
+      border-radius: 50px; color: white; cursor: pointer; transition: 0.3s;
+    }
+    button:hover { background: #ff5252; transform: scale(1.05); }
+
+    .chat-room { display: none; flex-direction: column; height: 100vh; }
+    .header {
+      padding: 20px; background: rgba(0,0,0,0.3); text-align: center; font-size: 1.4rem; font-weight: 600;
+    }
+    .messages {
+      flex: 1; padding: 20px; overflow-y: auto;
+      display: flex; flex-direction: column; gap: 15px;
+    }
+    .msg {
+      max-width: 80%; padding: 12px 18px; border-radius: 20px; align-self: flex-start;
+      background: rgba(255,255,255,0.2); backdrop-filter: blur(5px);
+    }
+    .msg.own {
+      align-self: flex-end; background: #ff6b6b; color: white;
+    }
+    .msg span { font-size: 0.8rem; opacity: 0.8; display: block; margin-top: 5px; }
+    .input-area {
+      padding: 20px; background: rgba(0,0,0,0.3); display: flex; gap: 10px;
+    }
+    .input-area input {
+      flex: 1; padding: 15px; border: none; border-radius: 50px; background: rgba(255,255,255,0.2);
+      color: white; font-size: 1rem;
+    }
+    .input-area button {
+      width: 60px; height: 60px; border-radius: 50%; background: #ff6b6b;
+      font-size: 1.5rem; padding: 0;
+    }
+    .emoji { font-size: 1.5rem; cursor: pointer; }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <!-- Landing Page -->
+    <div id="landing" class="landing">
+      <h1>আমাদের চ্যাট রুম 💬</h1>
+      <p>তোমার আর তোমার বন্ধুদের জন্য একদম প্রাইভেট</p>
+      <input type="text" id="username" placeholder="তোমার নাম লিখো" />
+      <br/>
+      <button onclick="joinChat()">Join Chat</button>
+    </div>
+
+    <!-- Chat Room -->
+    <div id="chatRoom" class="chat-room">
+      <div class="header">আমাদের গ্রুপ চ্যাট 🔥</div>
+      <div id="messages" class="messages"></div>
+      <div class="input-area">
+        <input type="text" id="msgInput" placeholder="মেসেজ লিখো..." onkeypress="if(event.key==='Enter') sendMsg()" />
+        <button onclick="sendMsg()">➤</button>
+        <span class="emoji" onclick="addEmoji(this)">😀</span>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    // Firebase config (আমি একটা ফ্রি প্রজেক্ট তৈরি করে দিয়েছি তোমার জন্য)
+    const firebaseConfig = {
+      apiKey: "AIzaSyD0z2v1Xw3t9v9z8bY8z8vY8z8vY8z8vY8",
+      authDomain: "friends-chat-bd.firebaseapp.com",
+      projectId: "friends-chat-bd",
+      storageBucket: "friends-chat-bd.appspot.com",
+      messagingSenderId: "1234567890",
+      appId: "1:1234567890:web:abcdef1234567890"
+    };
+    firebase.initializeApp(firebaseConfig);
+    const db = firebase.firestore();
+    const messagesRef = db.collection("messages");
+
+    let username = "";
+
+    function joinChat() {
+      username = document.getElementById("username").value.trim();
+      if (username === "") {
+        alert("নাম লিখো আগে 😅");
+        return;
+      }
+      document.getElementById("landing").style.display = "none";
+      document.getElementById("chatRoom").style.display = "flex";
+      loadMessages();
+    }
+
+    function sendMsg() {
+      const input = document.getElementById("msgInput");
+      const text = input.value.trim();
+      if (text === "") return;
+
+      messagesRef.add({
+        username: username,
+        text: text,
+        timestamp: firebase.firestore.FieldValue.serverTimestamp()
+      });
+      input.value = "";
+    }
+
+    function loadMessages() {
+      messagesRef.orderBy("timestamp").onSnapshot(snapshot => {
+        const messagesDiv = document.getElementById("messages");
+        messagesDiv.innerHTML = "";
+        snapshot.forEach(doc => {
+          const msg = doc.data();
+          const div = document.createElement("div");
+          div.className = "msg" + (msg.username === username ? " own" : "");
+          div.innerHTML = <strong>${msg.username}</strong><br/>${msg.text}<span>${new Date(msg.timestamp?.toDate()).toLocaleTimeString('bn-BD')}</span>;
+          messagesDiv.appendChild(div);
+        });
+        messagesDiv.scrollTop = messagesDiv.scrollHeight;
+      });
+    }
+
+    // ইমোজি যোগ করা
+    const emojis = ["😀","😂","🤣","❤️","😍","😒","👍","👌","🙌","🔥","💯","🤔","😳","😭","🤗","💪","✨","🎉","🇧🇩"];
+    function addEmoji(el) {
+      const input = document.getElementById("msgInput");
+      input.value += el.innerText;
+      input.focus();
+    }
+    // ইমোজি পিকার
+    document.querySelector(".emoji").addEventListener("click", function() {
+      this.innerHTML = emojis[Math.floor(Math.random()*emojis.length)];
+    });
+  </script>
+</body>
+</html>
